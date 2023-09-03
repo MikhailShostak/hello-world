@@ -1,0 +1,67 @@
+name: Builds
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      # Set fail-fast to false to ensure that feedback is delivered for all matrix combinations. Consider changing this to true when your workflow is stable.
+      fail-fast: false
+
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+        target: [HelloWorld]
+        configuration: [Release, Debug]
+        include:
+          - os: windows-latest
+            setup_command: BuildTools/Setup.bat
+            run_command: BuildTools/Run.bat
+            tools_command: BuildTools/Tools.bat
+          - os: ubuntu-latest
+            setup_command: ./BuildTools/Setup.sh
+            run_command: ./BuildTools/Run.sh
+            tools_command: ./BuildTools/Tools.sh
+          - os: macOS-latest
+            setup_command: ./BuildTools/Setup.sh
+            run_command: ./BuildTools/Run.sh
+            tools_command: ./BuildTools/Tools.sh
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Clone Build Tools
+      run: git clone https://github.com/MikhailShostak/BuildTools.git BuildTools
+    - if: matrix.os != 'windows-latest'
+      name: Make Script Executable (Unix)
+      run: chmod +x BuildTools/*.sh
+
+    - name: Cache Python Packages
+      id: python-packages
+      uses: actions/cache@v3
+      with:
+        path: BuildTools/.venv
+        key: ${{ matrix.os }}-python-packages-${{ hashFiles('BuildTools/requirements.txt') }}
+    - if: ${{ steps.python-packages.outputs.cache-hit != 'true' }}
+      name: Setup Environment
+      run: ${{ matrix.setup_command }}
+
+    - name: Cache Conan Packages
+      id: conan-packages
+      uses: actions/cache@v3
+      with:
+        path: BuildTools/.conan
+        key: ${{ matrix.os }}-${{ matrix.cc }}-${{ matrix.configuration }}-conan-packages-${{ hashFiles('*.project') }}
+    - if: ${{ steps.conan-packages.outputs.cache-hit != 'true' }}
+      name: Setup Conan Profile
+      run: ${{ matrix.run_command }} conan profile detect
+
+    - name: Generate Project Files for ${{ matrix.target }}
+      run: ${{ matrix.tools_command }} Generate --Target=${{ matrix.target }} --Configuration=${{ matrix.configuration }}
+    - name: Build ${{ matrix.target }}
+      run: ${{ matrix.tools_command }} Build --Target=${{ matrix.target }} --Configuration=${{ matrix.configuration }}
