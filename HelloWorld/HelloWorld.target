@@ -1,0 +1,8 @@
+Type: Application
+PrivateDependencies:
+  - Name: fmt/10.0.0
+PrivateIncludes:
+  - fmt/format.h
+  - fmt/ranges.h
+  - fmt/chrono.h
+  - fmt/ostream.h
