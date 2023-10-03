@@ -1,5 +1,7 @@
+import Main.Printer;
+
 int main()
 {
-    fmt::print("Hello World!");
+    Main::Printer().Print();
     return 0;
 }
